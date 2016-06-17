@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta charset="utf-8">
+</head>
+
+<body>
+  <header> 
+    <h1> Select the city for weather forecast </h1>
+    <select id="selectCity" onchange="loadWeatherForCity(this.options[this.selectedIndex].value)">
+      <option value="706483">Kharkiv</option>
+      <option value="578072">Belgorod</option>
+      <option value="694165">Dnepr</option>
+    </select>
+    <button id="requestButton">Weather request for selected city</button>
+    <button id="saveOptionsButton">Save cities from select options</button>
+    <button id="loadOptionsButton">Load cities to select options</button>
+    <button id="addCityOptionButton">Add city to select options</button>
+  </header>
+    
+  <main class='container' style="max-height:500px; overflow: auto;"> </main>
+
+  <script src="weatherInCity.js"></script>
+
+</body>
+
+</html>
+
+
