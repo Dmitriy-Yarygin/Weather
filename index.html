@@ -7,13 +7,17 @@
 
 <body>
   <header> 
+    <div>
     <h1> Select the city for weather forecast </h1>
-    <select id="selectCity" onchange="loadWeatherForCity(this.options[this.selectedIndex].value)">
-      <option value="706483">Kharkiv</option>
-      <option value="578072">Belgorod</option>
-      <option value="694165">Dnepr</option>
-    </select>
-    <button id="requestButton">Weather request for selected city</button>
+      <select id="selectCity" onchange="loadWeatherForCity(this.options[this.selectedIndex].value)">
+        <option value="706483">Kharkiv</option>
+        <option value="578072">Belgorod</option>
+        <option value="694165">Dnepr</option>
+      </select>
+      <button id="requestButton">Weather request for selected city</button>
+      <span  class="labelForRangeForecast"> Display 1 row forecast </span>     
+      <input  class="rangeForecast" type="range" min="1" max="12" step="1" value="2"> 
+    </div>  
     <button id="saveOptionsButton">Save cities from select options</button>
     <button id="loadOptionsButton">Load cities to select options</button>
     <button id="addCityOptionButton">Add city to select options</button>
