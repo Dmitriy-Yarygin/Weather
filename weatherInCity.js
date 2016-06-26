@@ -1,27 +1,32 @@
-
+var pageHeader = document.getElementsByTagName('header')[0];
 var rangeForecast = document.getElementsByClassName('rangeForecast')[0];
-
-loadWeatherForCity( selectCity.options[selectCity.selectedIndex].value );
-
+var main = document.getElementsByTagName('main')[0];
+var pageFooter = document.getElementsByTagName('footer')[0];
+//selectCity1.selectedIndex = -1;
+loadWeatherForCity( selectCity1.options[selectCity1.selectedIndex].value );
+// =============================================================================
 
 rangeForecast.onchange = function(){  
-  var ending = (rangeForecast.value==1) ? 's' : '';
+  var ending = (rangeForecast.value!=1) ? 's' : '';
   document.getElementsByClassName('labelForRangeForecast')[0].innerHTML = 
     'Display '+rangeForecast.value+ ' row' + ending + ' forecast '; 
 }
 
 requestButton.onclick = function(){
-  loadWeatherForCity( selectCity.options[selectCity.selectedIndex].value );
+  loadWeatherForCity( selectCity1.options[selectCity1.selectedIndex].value );
 }
 
 function loadWeatherForCity(cityCode) {
-  requestButton.innerHTML = 'Weather request for '+ selectCity.options[selectCity.selectedIndex].innerHTML;
+  var cityName = selectCity1.options[selectCity1.selectedIndex].innerHTML
+  requestButton.innerHTML = 'Weather request for '+ cityName;
   var myReq = (rangeForecast.value==1) ? 'current?' : '5days?';
   myReq+= cityCode;
   requestToMyServer('GET', myReq, null, function(responseText){
-      try {
+      //console.log(responseText);
+      try { 
         var x = JSON.parse( responseText );
-        show(x, rangeForecast.value); 
+        show(x, rangeForecast.value, cityCode);
+        infoBoxWrite('Получены данные погоды для '+cityName);
       } catch (e) {
         alert("ТРАБЛЫ " + e.message);
       }  
@@ -46,12 +51,11 @@ function requestToMyServer(method, myReq, body, callbackFunction) {
   }
 }
 // *************************************************************************************************
-function show(x, rows) {
+function show(x, rows, cityCode) {
   var thArray=['Time', 'Temperature', 'Pressure', 'Humidity', 'Weather'];
-  var myDiv = document.createElement('div');
-  var el = document.createElement('h3');
-  el.innerHTML = x.city.name;
-  myDiv.appendChild(el);
+  var myDiv = document.createElement('div');  
+  var tableNameElem = document.createElement('h3');
+  myDiv.appendChild( tableNameElem );
   var WeatherTable = document.createElement('table');
   WeatherTable.style.textAlign = "center";
   myDiv.appendChild(WeatherTable);
@@ -63,70 +67,209 @@ function show(x, rows) {
     el.innerHTML= thArray[i];    
     trElem.appendChild(el);
   }
-  // формируем строки таблицы с TD
-  var fillRowFunction = (rows==1) ? fillRowXdaysWeather : fillRowXdaysWeather;
-  for (var j=0; j < rows; j++) {
-    trElem = document.createElement('tr');
-    WeatherTable.appendChild(trElem);
-    for (var i=0; i<thArray.length; i++) {
-      trElem.appendChild( document.createElement('td') );
-    }  
-    fillRowFunction(WeatherTable.rows[j+1], x.list[j]);
-  }
-  document.getElementsByClassName('container')[0].appendChild(myDiv);
+  // дальше заполняем строки таблицы и ... название таблицы = названию города
+  if (rows==1) {
+    var  weatherObj = findObjInList( x.list, cityCode );
+    tableNameElem.innerHTML = weatherObj.name;
+    FillRowCurrentWeather(WeatherTable, weatherObj);
+  } else {
+    tableNameElem.innerHTML = x.city.name;
+    fillRowsXdaysWeather(WeatherTable, x.list, rows);
+  } 
+  changeMainHeight(); // регулирует высоту блока main в котором выводятся таблицы
+  main.appendChild(myDiv);
+  myDiv.scrollIntoView();
 }
-  
-  function fillRowXdaysWeather(WeatherTableRow, xlistj){
-    WeatherTableRow.cells[0].innerHTML = xlistj.dt_txt;
-    WeatherTableRow.cells[1].innerHTML = xlistj.main.temp
-    WeatherTableRow.cells[2].innerHTML = xlistj.main.pressure
-    WeatherTableRow.cells[3].innerHTML = xlistj.main.humidity
-    WeatherTableRow.cells[4].innerHTML = xlistj.weather[0].description;
+// *************************************************************************************************  
+function changeMainHeight() {  // регулирует высоту блока main в котором выводятся таблицы
+  var availableHeight = document.documentElement.clientHeight *0.6 ^ 0;
+  if (availableHeight<200) availableHeight=200;
+  // alert("расчетная высота "+availableHeight);
+  main.style.maxHeight=availableHeight+"px"
+}
+// *************************************************************************************************  
+function findObjInList(list,cityCode){ // возвращает объект соответствующий описанию текущей погоды для города cityCode в list (из manyCitiesWeather.json)
+  for (var j=0; j<list.length; j++){
+    if (list[j].id==cityCode) return list[j];
   }
-
-
-
-
-saveOptionsButton.onclick = function(){ 
+  return null;
+}
+// *************************************************************************************************  
+function FillRowCurrentWeather(WeatherTable, weatherObj){
+  if (weatherObj===null) return;
+  var trElem = document.createElement('tr');
+  var date = new Date( weatherObj.dt*1000 );  
+  var options = { /*era: 'long', year: "2-digit",*/ month: "2-digit", day: "2-digit", weekday: "short", /*timezone: 'UTC',*/ 
+                  hour: 'numeric', minute: 'numeric', /*second: 'numeric'*/};
+//alert( date.toLocaleString("ru", options) ); // среда, 31 декабря 2014 г. н.э. 12:30:00
+//alert( date.toLocaleString("en-US", options) ); // Wednesday, December 31, 2014 Anno Domini 12
+  var timeString = date.toLocaleString("en-US", options);
+  var tdArray = [timeString, weatherObj.main.temp, weatherObj.main.pressure, weatherObj.main.humidity, weatherObj.weather[0].description ];
+  for (var i=0; i<tdArray.length; i++) {
+    var tdElem = document.createElement('td');
+    tdElem.innerHTML = tdArray[i];
+    trElem.appendChild( tdElem );
+  }  
+  WeatherTable.appendChild(trElem);
+}; 
+// *************************************************************************************************
+function fillRowsXdaysWeather(WeatherTable, list, rows){
+  for (var j=0; j < rows; j++) {
+    var trElem = document.createElement('tr');
+    var tdArray = [list[j].dt_txt, list[j].main.temp, list[j].main.pressure, list[j].main.humidity, list[j].weather[0].description];
+    for (var i=0; i<tdArray.length; i++) {
+      var tdElem = document.createElement('td');
+      tdElem.innerHTML = tdArray[i];
+      trElem.appendChild( tdElem );
+    }  
+    WeatherTable.appendChild(trElem);
+  }  
+}
+// *************************************************************************************************
+function saveOptions(){ 
 // чтобы сохранить текущий список опций из селекта делаем json
-  var obj = selectCity.options[0];
+  var obj = selectCity1.options[0];
   var body = '[{"value":"'+obj["value"]+'", "text":"'+obj["text"]+'"}';
-  for (var i=1; i<selectCity.options.length; i++) {
-    obj = selectCity.options[i];
+  for (var i=1; i<selectCity1.options.length; i++) {
+    obj = selectCity1.options[i];
     body+=',{"value":"'+obj["value"]+'", "text":"'+obj["text"]+'"}';
   }
   body+=']';
   //console.log(body); 
   var myReq = '/saveOptions?';
   requestToMyServer('POST', myReq, body, function(responseText){
-    console.log('Ответ сервера на запрос записи опций:\n'+responseText);
+    infoBoxWrite('Ответ сервера на запрос записи опций:<br>'+responseText);
   });
 }
-
-loadOptionsButton.onclick = function(){ 
+// *************************************************************************************************
+function infoBoxWrite(textToShow){ 
+    var pElem = document.createElement('p');
+    pElem.innerHTML = textToShow;
+    pElem.style.cssText="margin-top: 2em; background: rgba(255, 249, 7, 0.41);"
+    pageFooter.appendChild( pElem );
+    pElem.scrollIntoView();
+}
+// *************************************************************************************************
+function loadOptions(){ 
 // получаем с моего сервера json с опциями для селекта
   var myReq = '/loadOptions?';
   requestToMyServer('GET', myReq, null, function(responseText){
       try {
         var newOptionsArray = JSON.parse( responseText );  
-        console.log ('Успешно получили с сервера опции для селекта'+responseText);
-        while (selectCity.lastElementChild) { // удалим старые опции
-          console.log('Сейчас удалим '+selectCity.lastElementChild.value);
-          selectCity.removeChild(selectCity.lastElementChild);
+        infoBoxWrite('Успешно получили с сервера опции для селекта '+responseText);
+        while (selectCity1.lastElementChild) { // удалим старые опции
+          //console.log('Сейчас удалим '+selectCity1.lastElementChild.value);
+          selectCity1.removeChild(selectCity1.lastElementChild);
         }
-        var newOptionElement; // добавим полученные с сервера опции
-        for (var i=0; i<newOptionsArray.length; i++) {
-            newOptionElement = document.createElement('option');
-            newOptionElement.value = newOptionsArray[i].value;
-            newOptionElement.innerHTML = newOptionsArray[i].text;
-            selectCity.appendChild(newOptionElement);
-        }    
+        // полученными с сервера опциями заполняем селект
+        newOptionsArray.forEach(function(item) { 
+          newSelectOption(selectCity1, item.value, item.text);
+        });    
       } catch (e) {
         alert("Сложности с JSON.parse опций для селекта " + e.message);
       }  
   });
+}
+// *************************************************************************************************
+function newSelectOption(selectObject, value, text){ 
+  var newOptionElement = document.createElement('option');
+  newOptionElement.value = value;
+  newOptionElement.innerHTML = text;
+  selectObject.appendChild(newOptionElement);
+}
+// *************************************************************************************************
+addCityOptionButton.onclick = function (){
+    var divCollection = document.getElementsByTagName('div'); 
+    divCollection[0].style.display = "none"; 
+    divCollection[1].style.display = "none"; 
+    divCollection[2].style.display = "block"; 
+    //var newCityDiv = document.getElementsByClassName('newCityClass')[0];
+}
+// *************************************************************************************************
+function f1FormCountriesList(defaultCountry){
+  requestToMyServer('GET', 'countries?', null, function(responseText){
+    if (responseText=='REPEAT') {
+      setTimeout(f1FormCountriesList, 1000);
+      //console.log('Перед выбором города сервер формирует список стран.\nПожалуйста, подождите.');
+      infoBoxWrite('Перед выбором города сервер формирует список стран.<br> Пожалуйста, подождите.');
+      return;
+    }  
+    //console.log(responseText);
+    try {
+      var countriesList = JSON.parse( responseText );
+    } catch (e) {
+      alert("ТРАБЛЫ c countriesList" + e.message);
+    }  
+    //console.log('Имеем список из '+countriesList.length+' стран.');
+    infoBoxWrite('Имеем список из '+countriesList.length+' стран.');
+    var selectCountry = document.getElementsByClassName('selectCountryClass')[0];
+    //  заполняем selectCountry полученными с сервера аббревиатурами стран 
+    countriesList.forEach(function(item) { 
+        newSelectOption(selectCountry, item, item);
+    });   
+  });  
+  // f2FormCitiesList(defaultCountry);
+}
+// *************************************************************************************************
+function f2FormCitiesList(selectedCountry){
+  if ( selectedCountry /*&& confirm('В f2FormCitiesList пришло '+selectedCountry+' Идем дальше? ') */) {
+    f3FormCitiesList();
+  }
+
+  function f3FormCitiesList(){
+    var selectCity = document.getElementsByClassName('selectCityClass')[0];
+    requestToMyServer('GET', 'cities?'+selectedCountry, null, function(responseText){
+      if (responseText=='REPEAT') {
+        setTimeout(f3FormCitiesList, 1000);
+        //console.log('Сервер формирует список городов для %s.\nПожалуйста, подождите.', selectedCountry);
+        infoBoxWrite('Сервер формирует список городов для '+selectedCountry+'.<br>Пожалуйста, подождите.' );
+        selectCity.style.display = "none"; 
+        selectCity.previousElementSibling.style.display = "none"; 
+        selectCity.nextElementSibling.style.display = "none"; 
+        return;
+      }  
+      //console.log(responseText);
+      try {
+        var citiesList = JSON.parse( responseText );
+      } catch (e) {
+        alert("ТРАБЛЫ c citiesList" + e.message);
+      }  
+      //console.log('Имеем список из %d городов для %s.', citiesList.length, selectedCountry);
+      infoBoxWrite('Имеем список из '+citiesList.length+' городов для '+ selectedCountry);
+      while (selectCity.lastElementChild) { // удалим старые опции
+          //console.log('Сейчас удалим '+selectCity.lastElementChild.value);
+          selectCity.removeChild(selectCity.lastElementChild);
+        }
+      //  заполняем selectCity полученными с сервера названиями городов и их id 
+      citiesList.forEach(function(city, i) { 
+          newSelectOption(selectCity, city.id, city.name);
+      });   
+      selectCity.style.display = "inline"; 
+      selectCity.previousElementSibling.style.display = "inline"; 
+      selectCity.nextElementSibling.style.display = "inline"; 
+    });  
+  }
+}
+// *************************************************************************************************
+function AddButtonClick(){
+  var select2 = document.getElementsByClassName('selectCityClass')[0];
+  var option = select2.options[select2.selectedIndex];
+  newSelectOption(selectCity1, option.value, option.innerHTML);
+  saveOptions();
+  cancelButtonClick(); 
+}
+// *************************************************************************************************
+function cancelButtonClick(){
+  var divCollection = document.getElementsByTagName('div'); 
+  divCollection[0].style.display = "block"; 
+  divCollection[1].style.display = "block"; 
+  divCollection[2].style.display = "none"; 
 
 }
+// =============================================================================
+f1FormCountriesList("UA"); // предварительная загрузка списка стран и списка городов UA
+
+
 
 
 

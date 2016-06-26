@@ -3,30 +3,47 @@
 
 <head>
   <meta charset="utf-8">
+  <link rel="stylesheet" href="style.css">    
 </head>
 
-<body>
+<body onresize="changeMainHeight()">
   <header> 
-    <div>
     <h1> Select the city for weather forecast </h1>
-      <select id="selectCity" onchange="loadWeatherForCity(this.options[this.selectedIndex].value)">
+    <div>
+      <label for="selectCity1"> Choose the city </label>
+      <select id="selectCity1" onchange="loadWeatherForCity(this.options[this.selectedIndex].value)">
         <option value="706483">Kharkiv</option>
         <option value="578072">Belgorod</option>
         <option value="694165">Dnepr</option>
       </select>
       <button id="requestButton">Weather request for selected city</button>
-      <span  class="labelForRangeForecast"> Display 1 row forecast </span>     
-      <input  class="rangeForecast" type="range" min="1" max="12" step="1" value="2"> 
+      <label for="rangeForecast" class="labelForRangeForecast"> Display rows in forecast </label>
+      <input  class="rangeForecast" type="range" min="1" max="12" step="1" value="1">       
     </div>  
-    <button id="saveOptionsButton">Save cities from select options</button>
-    <button id="loadOptionsButton">Load cities to select options</button>
-    <button id="addCityOptionButton">Add city to select options</button>
+    <div>  
+      <button id="saveOptionsButton" onclick="saveOptions()">Save</button>
+      <button id="loadOptionsButton" onclick="loadOptions()">Load</button>
+      <button id="addCityOptionButton">Add city</button>
+    </div>  
+    <div class="newCityClass">  
+      <label for="selectCountryClass"> First select country </label>
+      <select class="selectCountryClass" onchange=" f2FormCitiesList(this.options[this.selectedIndex].value)"></select>
+      <label for="selectCityClass"> Second select city to add </label>
+      <select class="selectCityClass" onchange=""></select>
+      <button onclick="AddButtonClick()"> Add</button>
+      <button onclick="cancelButtonClick()"> Cancel </button>
+    </div> 
+    <hr>  
   </header>
+
+  <main class='container'> 
+
+  </main>
+
+  <footer>
     
-  <main class='container' style="max-height:500px; overflow: auto;"> </main>
-
+  </footer>
   <script src="weatherInCity.js"></script>
-
 </body>
 
 </html>
