@@ -1,0 +1,27 @@
+{
+  "name": "node-js-Weather",
+  "version": "1.0.0-alpha1",
+  "description": "Clien-server app fo weather forcast",
+  "engines": {
+    "node": "4.4.3"
+  },
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "latest",
+    "request": "latest",
+    "node-static": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dmitriy-Yarygin/Weather"
+  },
+  "keywords": [
+    "node",
+    "heroku",
+    "weather"
+  ],
+  "license": "MIT"
+}
