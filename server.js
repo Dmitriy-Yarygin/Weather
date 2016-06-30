@@ -7,6 +7,7 @@ var file = new static.Server('.', {
 });	
 var request = require('request');
 var fs = require('fs');
+var CITIESWEATHERFILENAME = 'manyCitiesWeather';
 var BDPATH = './bd/';
 var currentDir = __dirname;
 // ===================================================================================================
@@ -45,11 +46,44 @@ function accept(req, res) {
 	 		saveOptionStream.on("finish", function(){		 			
 		 		res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' }); 
 		 		res.end('Опции в options.sav.json ');
+		 		shadowRefresh.start(1800000);  // 30минут*60секунд*1000=1800 000 милисекунд
 	 		});
 	 		return;
 		case '/loadOptions': 
 			req.url=BDPATH+'options.sav.json';
 			break;
+		case '/countries':  		
+			var PathToJSON = citiesExpert.givePathToTheFile('countries.json');
+			// проверяем наличие файла со списком стран
+			if (PathToJSON === undefined) {
+				// при отсутствии файла со списком стран - формируем файл и просим клиента обратиться позже				
+				res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' }); 
+		 		res.end('REPEAT'); // Повторите запрос позже, файл будет сформирован
+				// citiesExpert.flagCountriesFileFormed = false;  // ???
+				citiesExpert.makeCountriesJSON('countries.json');
+		 		return;
+			}
+			// при наличии файла со списком стран - выдаем
+			req.url = PathToJSON;
+			break;
+		case '/cities':  		
+			var countryAbbreviation = req.url.slice(req.url.indexOf("?")+1);
+			//console.log('countryAbbreviation ='+countryAbbreviation);
+			var PathToJSON = citiesExpert.givePathToTheFile('citiesOf'+countryAbbreviation + '.json');
+			//console.log('PathToJSON = '+PathToJSON);
+			// проверяем наличие файла со списком городов для страны countryAbbreviation
+			if (PathToJSON === undefined) {
+				// при отсутствии файла со списком стран - формируем файл и просим клиента обратиться позже				
+				res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' }); 
+		 		res.end('REPEAT'); // Повторите запрос позже, файл будет сформирован
+		 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				// citiesExpert.CitiesFileFormedFor[countryAbbreviation] = false;   ???
+				citiesExpert.makeCitiesJSON(countryAbbreviation);
+		 		return;
+			}
+			// при наличии файла со списком стран - выдаем
 			req.url = PathToJSON;
 	}
 	file.serve(req, res);
@@ -85,6 +119,15 @@ function cls(n){
 	for (var i=0;i<n;i++) console.log('\n');
 }
 // ==================================================================================================
+var ObjectMakeManyWeatherJSONs = require('./WeatherInManyCities.js');
+cls(10);
+console.log('\nЗапускаем WeatherInManyCities - для автоматического обновления текущего прогноза по городам = "Белка в колесе".');
+var shadowRefresh = new ObjectMakeManyWeatherJSONs.WeatherInManyCities(BDPATH);
+shadowRefresh.start(1800000);  // 30минут*60секунд*1000=1800 000 милисекунд
+//-------------------------------------------------------------------------------------
+var CitiesInCountries = require('./CitiesInCountries.js');
+console.log('\nЗапускаем CitiesInCountries - для работы со списком стран и городов внутри страны.');
+var citiesExpert = new CitiesInCountries.CitiesInCountries(BDPATH);
 // ---------------- запустить сервер ----------------
 if (!module.parent) {
   http.createServer(accept).listen(8080);
