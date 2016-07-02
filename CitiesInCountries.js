@@ -4,60 +4,47 @@ function CitiesInCountries(bdDirectory) {
 	this.bdDirectory = bdDirectory;
 }  
 // -----------------------------------------------------------------------------------------------
-CitiesInCountries.prototype.givePathToTheFile = function(fileName) { 
+CitiesInCountries.prototype.giveCountries = function(res) { 
 	var objectCaller = this;
-	var fullPath = objectCaller.bdDirectory+fileName;	
-	console.log('fullPath = ' + fullPath);
+	var countriesFullPath = objectCaller.bdDirectory+'countries.json';
 	var fs = require('fs');
-	// СИНХРОННО проверяем наличие файла
-	try {
-		var stats = fs.statSync(fullPath);
-    } catch (error) {
-		console.log("Ошибка " + error.message);
-		return
-    }  
-	if (stats.isFile()) return fullPath; 
+	// проверяем наличие файла 
+	fs.stat(countriesFullPath, function(err, stats){
+		if (err) {
+			if (err.code=='ENOENT') makeCountriesJSON(res, countriesFullPath);
+				else console.error("Ошибка " + err.message);
+			return;
+		};
+		if (stats.isFile()) { 
+			res.sendFile(countriesFullPath); 
+			// console.log('\n Сервер успешно отправил файл %s', fullPath);
+		}
+	});
 }
 // -----------------------------------------------------------------------------------------------
-CitiesInCountries.prototype.makeCountriesJSON = function(fileName) { 	
-	var objectCaller = this;
-	var fullPath = objectCaller.bdDirectory+fileName;
+function makeCountriesJSON(res, countriesFullPath) { 
 	// асинхронно создаем файл со списком стран
 	console.log(" Собираемся создать файл со списком стран." );
-	var countriesExtractor = new CountriesExtractor('./bd/city.list.json');    
-	//var countriesExtractor = new CountriesExtractor('./bd/testlist.json');     
-	readBigFile(countriesExtractor); 
-	saveFileWhenReady(); 
-
-	function saveFileWhenReady(){
-		setTimeout( function() {
-			if (countriesExtractor.flagCountriesListFormed) {
-				// переводим список стран в JSON и сохраняем в файл
-				var str = JSON.stringify(countriesExtractor.countriesList);
-				var fs = require('fs');
-				fs.writeFileSync(fullPath, str);
-				console.log(" Теперь уж точно создали файл со списком %d стран.", countriesExtractor.countriesList.length); 
-			} else {
-				saveFileWhenReady();
-				console.log("Cписок стран еще не готов - подождем и повторим." ); 
-			}
-		}, 1000);
-	}
-}
+	var countriesExtractor = new CountriesExtractor(res, countriesFullPath);  
+	readBigFile(countriesExtractor);   // countriesExtractor.countriesList, fullPath
+}  	
 // -----------------------------------------------------------------------------------------------
-function CountriesExtractor(fullPath){
-	this.fullPath = fullPath;
+function CountriesExtractor(res, countriesFullPath){
+	//console.log("Объект CountriesExtractor строит список стран." );
+	this.bigFilePath  = './bd/city.list.json';
+	this.countriesFullPath = countriesFullPath;	
 	this.flagCountriesListFormed = false;
 	this.countriesList = [];
 	this.buffer = '';
-
+	this.res = res;
+//  - - - - - - -
 	this.countriesList.myPush = function(countryName){
 		for (var i = 0; i < this.length; i++) {
 			if (countryName==this[i]) return;
 		}
 		this.push(countryName);
 	};
-
+//  - - - - - - -
 	this.countriesList.mySort = function(){
 		for (var i=0; i<this.length; i++) { 
 		  for (var j=1; j<this.length-i; j++) { 
@@ -69,7 +56,7 @@ function CountriesExtractor(fullPath){
 		  }   
 		}  
 	};
-
+//  - - - - - - -
 }
 // -----------------------------------------------------------------------------------------------
 CountriesExtractor.prototype.work = function(partialData) { 
@@ -89,13 +76,21 @@ CountriesExtractor.prototype.work = function(partialData) {
 // -----------------------------------------------------------------------------------------------
 CountriesExtractor.prototype.complete = function() { 
 	this.countriesList.mySort();
-	//console.log('COMPLETE:'+this.countriesList);
-	this.flagCountriesListFormed = true;
+	// переводим список стран в JSON и сохраняем в файл
+	var str = JSON.stringify(this.countriesList);
+	var fs = require('fs');
+	fs.writeFile(this.countriesFullPath, str, (err) => {
+	  if (err) console.error("Не могу сохранить файл со списком стран." + err.message);
+	  	else { 
+		  	this.res.sendFile(this.countriesFullPath); 
+		  	console.log("Cоздан файл %s со списком %d стран.", this.countriesFullPath, this.countriesList.length); 
+		};
+	});	
 }
 // -----------------------------------------------------------------------------------------------
 function readBigFile (extractor) { 
 	var fs = require('fs');
-	var stream = fs.createReadStream(extractor.fullPath, {encoding: 'utf8'});
+	var stream = fs.createReadStream(extractor.bigFilePath, {encoding: 'utf8'});
 
 	stream.on('readable', function() {
 	    var partialData = stream.read();
@@ -103,50 +98,50 @@ function readBigFile (extractor) {
 	});
 
 	stream.on('end', function() {
-	    console.log('Чтение ' + extractor.fullPath + ' выполнено успешно.');
+	    console.log('Чтение ' + extractor.bigFilePath + ' выполнено успешно.');
 	    extractor.complete();
 	});
 
 	stream.on('error', function(err){
 		if (err.code=='ENOENT') {
-			console.log('Файл ' + extractor.fullPath + ' не найден');	
+			console.log('Файл ' + extractor.bigFilePath + ' не найден');	
+		} else console.error("Ошибка в readBigFile" + err.message);
+	});
+}
+// -----------------------------------------------------------------------------------------------
+CitiesInCountries.prototype.giveCities = function(countryAbbreviation, res) { 
+	var objectCaller = this;
+	var countryCitiesFullPath = this.bdDirectory + 'citiesOf' + countryAbbreviation + '.json'
+	var fs = require('fs');
+	// проверяем наличие файла со списком городов страны countryAbbreviation
+	fs.stat(countryCitiesFullPath, function(err, stats){
+		if (err) {
+			if (err.code=='ENOENT') makeCitiesJSON(res, countryAbbreviation, countryCitiesFullPath);
+				else console.error("Ошибка " + err.message);
+			return;
+		};
+		if (stats.isFile()) { 
+			res.sendFile(countryCitiesFullPath); 
+		 	console.log('\n Сервер успешно отправил файл %s', countryCitiesFullPath);
 		}
 	});
 }
 // -----------------------------------------------------------------------------------------------
-CitiesInCountries.prototype.makeCitiesJSON = function(countryAbbreviation) { // выборка городов по стране countryAbbreviation
-	var objectCaller = this;
-	var fullPath = objectCaller.bdDirectory+'citiesOf'+countryAbbreviation + '.json';
-	// асинхронно создаем файл со списком городов в стране countryAbbreviation
-	console.log(" Собираемся создать файл со списком городов для страны %s.", countryAbbreviation);
-	var citiesExtractor = new CitiesExtractor('./bd/city.list.json', countryAbbreviation); 
-	//var citiesExtractor = new CitiesExtractor('./bd/testlist.json', countryAbbreviation);     
+function makeCitiesJSON(res, countryAbbreviation, countryCitiesFullPath) { 
+	console.log(" Собираемся создать файл со списком городов  %s", countryAbbreviation);
+	var citiesExtractor = new CitiesExtractor(res, countryAbbreviation, countryCitiesFullPath); 
 	readBigFile(citiesExtractor); 
-	saveFileWhenReady(); 
-
-	function saveFileWhenReady(){
-		setTimeout( function() {
-			if (citiesExtractor.isCitiesFileFormed) {
-				// переводим список стран в JSON и сохраняем в файл
-				var str = JSON.stringify(citiesExtractor.citiesList);
-				var fs = require('fs');
-				fs.writeFileSync(fullPath, str);
-				console.log(" Cоздан файл со списком %d городов для %s.", citiesExtractor.citiesList.length, countryAbbreviation); 
-			} else {
-				saveFileWhenReady();
-				console.log("Cписок городов страны %s еще не готов - подождем и повторим.", countryAbbreviation ); 
-			}
-		}, 1000);
-	}
 }
 // -----------------------------------------------------------------------------------------------
-function CitiesExtractor(fullPath, countryAbbreviation){
-	this.fullPath = fullPath;
+function CitiesExtractor(res, countryAbbreviation, countryCitiesFullPath){
+	console.log("Объект CitiesExtractor строит список городов для страны %s", countryAbbreviation);
+	this.res = res;
 	this.countryAbbreviation = countryAbbreviation;	
-	this.isCitiesFileFormed = false;  
+	this.bigFilePath  = './bd/city.list.json';
+	this.countryCitiesFullPath = countryCitiesFullPath;	
 	this.citiesList = [];
 	this.buffer = '';
-
+//  - - - - - - -
 	this.citiesList.mySort = function(){
 		for (var i=0; i<this.length; i++) { 
 		  for (var j=1; j<this.length-i; j++) { 
@@ -158,7 +153,7 @@ function CitiesExtractor(fullPath, countryAbbreviation){
 		  }   
 		}  
 	};
-
+//  - - - - - - -
 }
 // -----------------------------------------------------------------------------------------------
 CitiesExtractor.prototype.work = function(partialData) { 
@@ -175,8 +170,16 @@ CitiesExtractor.prototype.work = function(partialData) {
 // -----------------------------------------------------------------------------------------------
 CitiesExtractor.prototype.complete = function() { 
 	this.citiesList.mySort();
-	//console.log('COMPLETE:'+this.citiesList);
-	this.isCitiesFileFormed = true;
+	// переводим список стран в JSON и сохраняем в файл
+	var str = JSON.stringify(this.citiesList);
+	var fs = require('fs');
+	fs.writeFile(this.countryCitiesFullPath, str, (err) => {
+	  if (err) console.error("Не могу сохранить файл со списком городов." + err.message);
+	  	else { 
+		  	this.res.sendFile(this.countryCitiesFullPath); 
+		  	console.log(" Cоздан файл %s со списком %d городов для %s.", this.countryCitiesFullPath, this.citiesList.length, this.countryAbbreviation); 
+		};
+	});	
 }
 // ===================================================================================================
 exports.CitiesInCountries = CitiesInCountries;

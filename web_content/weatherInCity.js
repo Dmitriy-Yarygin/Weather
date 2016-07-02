@@ -24,7 +24,7 @@ function loadWeatherForCity(cityCode) {
   requestToMyServer('GET', myReq, null, function(responseText){
       //console.log(responseText);
       try { 
-        var x = JSON.parse( responseText );
+        var x = JSON.parse( responseText );  
         show(x, rangeForecast.value, cityCode);
         infoBoxWrite('Получены данные погоды для '+cityName);
       } catch (e) {
@@ -52,16 +52,16 @@ function requestToMyServer(method, myReq, body, callbackFunction) {
 }
 // *************************************************************************************************
 function show(x, rows, cityCode) {
-  var thArray=['Time', 'Temperature', 'Pressure', 'Humidity', 'Weather'];
   var myDiv = document.createElement('div');  
   var tableNameElem = document.createElement('h3');
   myDiv.appendChild( tableNameElem );
   var WeatherTable = document.createElement('table');
+  myDiv.appendChild(WeatherTable);  
   WeatherTable.style.textAlign = "center";
-  myDiv.appendChild(WeatherTable);
   // формируем строку с заголовками таблицы TH
   var trElem = document.createElement('tr');
   WeatherTable.appendChild(trElem);
+  var thArray=['Time', 'Temperature', 'Pressure', 'Humidity', 'Weather'];
   for (var i=0; i<thArray.length; i++) {
     var el=document.createElement('th'); 
     el.innerHTML= thArray[i];    
@@ -136,7 +136,7 @@ function saveOptions(){
   }
   body+=']';
   //console.log(body); 
-  var myReq = '/saveOptions?';
+  var myReq = '/saveOptions';
   requestToMyServer('POST', myReq, body, function(responseText){
     infoBoxWrite('Ответ сервера на запрос записи опций:<br>'+responseText);
   });
@@ -152,19 +152,22 @@ function infoBoxWrite(textToShow){
 // *************************************************************************************************
 function loadOptions(){ 
 // получаем с моего сервера json с опциями для селекта
-  var myReq = '/loadOptions?';
+  var myReq = '/loadOptions';
   requestToMyServer('GET', myReq, null, function(responseText){
       try {
-        var newOptionsArray = JSON.parse( responseText );  
-        infoBoxWrite('Успешно получили с сервера опции для селекта '+responseText);
+        var newOptionsArray = JSON.parse( responseText ); 
+
         while (selectCity1.lastElementChild) { // удалим старые опции
           //console.log('Сейчас удалим '+selectCity1.lastElementChild.value);
           selectCity1.removeChild(selectCity1.lastElementChild);
         }
         // полученными с сервера опциями заполняем селект
+        var citiesAr = [];
         newOptionsArray.forEach(function(item) { 
           newSelectOption(selectCity1, item.value, item.text);
-        });    
+          citiesAr.push(item.text);
+        }); 
+        infoBoxWrite('Успешно получили с сервера опции для селекта '+ citiesAr.join(' ... '));           
       } catch (e) {
         alert("Сложности с JSON.parse опций для селекта " + e.message);
       }  
@@ -187,68 +190,57 @@ addCityOptionButton.onclick = function (){
 }
 // *************************************************************************************************
 function f1FormCountriesList(defaultCountry){
-  requestToMyServer('GET', 'countries?', null, function(responseText){
-    if (responseText=='REPEAT') {
-      setTimeout(f1FormCountriesList, 1000);
-      //console.log('Перед выбором города сервер формирует список стран.\nПожалуйста, подождите.');
-      infoBoxWrite('Перед выбором города сервер формирует список стран.<br> Пожалуйста, подождите.');
-      return;
-    }  
+  requestToMyServer('GET', 'countries', null, function(responseText){
     //console.log(responseText);
     try {
       var countriesList = JSON.parse( responseText );
     } catch (e) {
       alert("ТРАБЛЫ c countriesList" + e.message);
     }  
-    //console.log('Имеем список из '+countriesList.length+' стран.');
-    infoBoxWrite('Имеем список из '+countriesList.length+' стран.');
+    // console.log('Имеем список из '+countriesList.length+' стран.');
+    // infoBoxWrite('Имеем список из '+countriesList.length+' стран.');
     var selectCountry = document.getElementsByClassName('selectCountryClass')[0];
     //  заполняем selectCountry полученными с сервера аббревиатурами стран 
     countriesList.forEach(function(item) { 
         newSelectOption(selectCountry, item, item);
     });   
   });  
-  // f2FormCitiesList(defaultCountry);
+  var selectCountry = document.getElementsByClassName('selectCountryClass')[0];
+  var i = selectCountry.options.length;
+  while ((i>0) && (selectCountry.options[i].value!=defaultCountry)) { i--; }
+  selectCountry.selectedIndex = i;
+  f2FormCitiesList(defaultCountry);
 }
 // *************************************************************************************************
 function f2FormCitiesList(selectedCountry){
-  if ( selectedCountry /*&& confirm('В f2FormCitiesList пришло '+selectedCountry+' Идем дальше? ') */) {
-    f3FormCitiesList();
-  }
-
-  function f3FormCitiesList(){
-    var selectCity = document.getElementsByClassName('selectCityClass')[0];
-    requestToMyServer('GET', 'cities?'+selectedCountry, null, function(responseText){
-      if (responseText=='REPEAT') {
-        setTimeout(f3FormCitiesList, 1000);
-        //console.log('Сервер формирует список городов для %s.\nПожалуйста, подождите.', selectedCountry);
-        infoBoxWrite('Сервер формирует список городов для '+selectedCountry+'.<br>Пожалуйста, подождите.' );
-        selectCity.style.display = "none"; 
-        selectCity.previousElementSibling.style.display = "none"; 
-        selectCity.nextElementSibling.style.display = "none"; 
-        return;
-      }  
-      //console.log(responseText);
-      try {
-        var citiesList = JSON.parse( responseText );
-      } catch (e) {
-        alert("ТРАБЛЫ c citiesList" + e.message);
-      }  
-      //console.log('Имеем список из %d городов для %s.', citiesList.length, selectedCountry);
-      infoBoxWrite('Имеем список из '+citiesList.length+' городов для '+ selectedCountry);
-      while (selectCity.lastElementChild) { // удалим старые опции
-          //console.log('Сейчас удалим '+selectCity.lastElementChild.value);
-          selectCity.removeChild(selectCity.lastElementChild);
-        }
-      //  заполняем selectCity полученными с сервера названиями городов и их id 
-      citiesList.forEach(function(city, i) { 
-          newSelectOption(selectCity, city.id, city.name);
-      });   
-      selectCity.style.display = "inline"; 
-      selectCity.previousElementSibling.style.display = "inline"; 
-      selectCity.nextElementSibling.style.display = "inline"; 
-    });  
-  }
+  if (!(selectedCountry)) return;
+  var selectCity = document.getElementsByClassName('selectCityClass')[0];
+  //console.log('Сервер формирует список городов для %s.\nПожалуйста, подождите.', selectedCountry);
+  infoBoxWrite('Сервер формирует список городов для '+selectedCountry+'.<br>Пожалуйста, подождите.' );
+  selectCity.style.display = "none"; 
+  selectCity.previousElementSibling.style.display = "none"; 
+  selectCity.nextElementSibling.style.display = "none"; 
+  requestToMyServer('GET', 'cities?'+selectedCountry, null, function(responseText){
+    //console.log(responseText);
+    try {
+      var citiesList = JSON.parse( responseText );
+    } catch (e) {
+      alert("ТРАБЛЫ c citiesList" + e.message);
+    }  
+    //console.log('Имеем список из %d городов для %s.', citiesList.length, selectedCountry);
+    infoBoxWrite('Имеем список из '+citiesList.length+' городов для '+ selectedCountry);
+    while (selectCity.lastElementChild) { // удалим старые опции
+        //console.log('Сейчас удалим '+selectCity.lastElementChild.value);
+        selectCity.removeChild(selectCity.lastElementChild);
+      }
+    //  заполняем selectCity полученными с сервера названиями городов и их id 
+    citiesList.forEach(function(city, i) { 
+        newSelectOption(selectCity, city.id, city.name);
+    });   
+    selectCity.style.display = "inline"; 
+    selectCity.previousElementSibling.style.display = "inline"; 
+    selectCity.nextElementSibling.style.display = "inline"; 
+  });  
 }
 // *************************************************************************************************
 function AddButtonClick(){
@@ -268,6 +260,7 @@ function cancelButtonClick(){
 }
 // =============================================================================
 f1FormCountriesList("UA"); // предварительная загрузка списка стран и списка городов UA
+
 
 
 
