@@ -1,8 +1,8 @@
-#WEATHER ver 1.0.0-alpha1#
+#WEATHER ver 0.1.0-alpha#
 ---------------------------
  
 
-##Интерфейс:##
+##Interface:##
 1. .
 2. .
 3. .

@@ -127,6 +127,13 @@ CitiesInCountries.prototype.giveCities = function(countryAbbreviation, res) {
 	});
 }
 // -----------------------------------------------------------------------------------------------
+CitiesInCountries.prototype.giveCitiesByPartialName = function(PartialName, res){ 
+	var objectCaller = this;
+//	console.log('\nБудем возвращать список городов, названия которых начинаются на %s', PartialName);
+	var citiesExtractorByPartialName = new CitiesExtractorByPartialName(res, PartialName); 
+	readBigFile(citiesExtractorByPartialName); 
+}
+// -----------------------------------------------------------------------------------------------
 function makeCitiesJSON(res, countryAbbreviation, countryCitiesFullPath) { 
 	console.log(" Собираемся создать файл со списком городов  %s", countryAbbreviation);
 	var citiesExtractor = new CitiesExtractor(res, countryAbbreviation, countryCitiesFullPath); 
@@ -181,5 +188,43 @@ CitiesExtractor.prototype.complete = function() {
 		};
 	});	
 }
+// -----------------------------------------------------------------------------------------------
+				function CitiesExtractorByPartialName(res, PartialName){
+					console.log("Объект CitiesExtractorByPartialName строит список городов начинающихся на %s", PartialName);
+					this.res = res;
+					this.PartialName = PartialName;	
+					this.bigFilePath  = './bd/city.list.json';
+					this.citiesList = [];
+					this.buffer = '';
+				}
+				// -----------------------------------------------------------------------------------------------
+				CitiesExtractorByPartialName.prototype.work = function(partialData) { 
+					if (partialData){
+						this.buffer += partialData;
+						var obArray = this.buffer.split("\n");
+						var regexp = new RegExp("^"+this.PartialName, "i");
+						//console.log('\n regexp = '+regexp);  
+						for (var i = 0; i < obArray.length-1; i++) {
+							var oneCityObj = JSON.parse( obArray[i] );
+							if (regexp.test(oneCityObj.name)) {
+								this.citiesList.push({ id:oneCityObj._id, name: oneCityObj.name, country:oneCityObj.country });
+							}   									
+						}
+						this.buffer = obArray[obArray.length-1];
+					}  // если файл оканчивается пустой строкой - больше ничего не нужно делать, она останется в буфере, в список ее вносить не будем
+				}
+				// -----------------------------------------------------------------------------------------------
+				CitiesExtractorByPartialName.prototype.complete = function() { 
+					var str = JSON.stringify(this.citiesList);
+					this.res.json(this.citiesList); 
+					var citiesAr = this.citiesList.map(function(item) {
+					  return item.name;
+					});
+					console.log('\nУшло с сервера:\n'+citiesAr.join('.\t'));
+					console.log('\n');
+					/*
+					  if (err) console.error("Ошибка %ы \nНе могу передать json со списком городов для %s.", err.message, this.citiesList.length, this.PartialName);
+					  	else console.log(" Передан json со списком %d городов для %s.", this.citiesList.length, this.PartialName); */
+				}
 // ===================================================================================================
 exports.CitiesInCountries = CitiesInCountries;

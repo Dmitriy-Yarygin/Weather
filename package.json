@@ -1,7 +1,7 @@
 {
   "name": "node-js-Weather",
   "version": "0.1.0-alpha",
-  "description": "Clien-server app fo weather forcast",
+  "description": "Client-server app fo weather forcast",
   "engines": {
     "node": "4.4.3"
   },

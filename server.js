@@ -1,11 +1,11 @@
 
-var http = require('http');
-var url = require('url');
-var querystring = require('querystring');
-var static = require('node-static');
-var file = new static.Server('.', {
+//var http = require('http');
+//var url = require('url');
+//var querystring = require('querystring');
+//var static = require('node-static');
+/*var file = new static.Server('.', {
   cache: 0
-});	
+});	*/
 var request = require('request');
 var fs = require('fs');
 var CITIESWEATHERFILENAME = 'manyCitiesWeather';
@@ -76,7 +76,7 @@ app.get('/current',function (req, res, next) {
 	res.sendFile(sendingFilePath);
 });
 app.get('/5days',function (req, res, next) {
-	var cityCode = req.url.slice(req.url.indexOf("?")+1);
+	var cityCode = req.url.split("?")[1];
 	var fullPath = BDPATH + cityCode + '.json';
 	fs.stat(fullPath, function (err, stats){
 		if (err) {			
@@ -99,11 +99,10 @@ app.get('/countries', function (req, res, next) {
 	citiesExpert.giveCountries(res);
 });
 app.get('/cities', function (req, res, next) {
-	var shortedReq = req.url.slice(req.url.indexOf("?")+1);
+	var shortedReq = req.url.split("?")[1];
 	console.log('\n shortedReq= %s', shortedReq);
 	citiesExpert.giveCities(shortedReq, res);
 });
-
 app.get('/loadOptions',function (req, res, next) {
 	var sendingFilePath = BDPATH +'options.sav.json';
 	res.sendFile(sendingFilePath);
@@ -115,4 +114,11 @@ app.post('/saveOptions',function (req, res, next) {
  		res.end('Опции в options.sav.json ');
  		shadowRefresh.start(1800000);  // 30минут*60секунд*1000=1800 000 милисекунд
 		});
+});
+
+
+app.get('/findCitiesByPartialName',function (req, res, next) { 
+	var PartialName = req.url.split("?")[1];
+	console.log('\nПроизводим выборку городов начинающихся на '+PartialName);	
+	citiesExpert.giveCitiesByPartialName(PartialName, res);
 });

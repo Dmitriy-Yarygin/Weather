@@ -17,7 +17,8 @@ requestButton.onclick = function(){
 }
 
 function loadWeatherForCity(cityCode) {
-  var cityName = selectCity1.options[selectCity1.selectedIndex].innerHTML
+  var cityName = selectCity1.options[selectCity1.selectedIndex].innerHTML;
+  infoBoxWrite('Сервер формирует ответ по '+cityName+'.\nПожалуйста подождите!');
   requestButton.innerHTML = 'Weather request for '+ cityName;
   var myReq = (rangeForecast.value==1) ? 'current?' : '5days?';
   myReq+= cityCode;
@@ -25,7 +26,6 @@ function loadWeatherForCity(cityCode) {
       //console.log(responseText);
       try { 
         var x = JSON.parse( responseText );  
-        show(x, rangeForecast.value, cityCode);
         infoBoxWrite('Получены данные погоды для '+cityName);
       } catch (e) {
         alert("ТРАБЛЫ " + e.message);
@@ -51,22 +51,9 @@ function requestToMyServer(method, myReq, body, callbackFunction) {
   }
 }
 // *************************************************************************************************
-function show(x, rows, cityCode) {
-  var myDiv = document.createElement('div');  
+  var fragment = document.createDocumentFragment();
   var tableNameElem = document.createElement('h3');
-  myDiv.appendChild( tableNameElem );
-  var WeatherTable = document.createElement('table');
-  myDiv.appendChild(WeatherTable);  
-  WeatherTable.style.textAlign = "center";
-  // формируем строку с заголовками таблицы TH
-  var trElem = document.createElement('tr');
-  WeatherTable.appendChild(trElem);
-  var thArray=['Time', 'Temperature', 'Pressure', 'Humidity', 'Weather'];
-  for (var i=0; i<thArray.length; i++) {
-    var el=document.createElement('th'); 
-    el.innerHTML= thArray[i];    
-    trElem.appendChild(el);
-  }
+  var WeatherTable = createTableHead(['Time', 'Temperature', 'Pressure', 'Humidity', 'Weather']);
   // дальше заполняем строки таблицы и ... название таблицы = названию города
   if (rows==1) {
     var  weatherObj = findObjInList( x.list, cityCode );
@@ -76,11 +63,40 @@ function show(x, rows, cityCode) {
     tableNameElem.innerHTML = x.city.name;
     fillRowsXdaysWeather(WeatherTable, x.list, rows);
   } 
+  fragment.appendChild(tableNameElem);
+  fragment.appendChild(WeatherTable);
+  createDivInMain(fragment);
+}
+// *************************************************************************************************  
+function createDivInMain(insertedObject){
+  var myDiv = document.createElement('div');  
+  myDiv.appendChild( insertedObject );
   changeMainHeight(); // регулирует высоту блока main в котором выводятся таблицы
   main.appendChild(myDiv);
   myDiv.scrollIntoView();
+  return myDiv;
 }
+
 // *************************************************************************************************  
+function delAllDivsInMain(){	
+	while (main.lastElementChild) { // удалим старые div
+          main.removeChild(main.lastElementChild);
+    }
+}
+// *************************************************************************************************
+function createTableHead(thArray){
+  var TableHead = document.createElement('table');
+  TableHead.style.textAlign = "center";
+  var trElem = document.createElement('tr');
+  thArray.forEach( (item) => {
+    var el=document.createElement('th'); 
+    el.innerHTML= item;    
+    trElem.appendChild(el);
+  });
+  TableHead.appendChild(trElem);  
+  return TableHead;
+}
+// *************************************************************************************************
 function changeMainHeight() {  // регулирует высоту блока main в котором выводятся таблицы
   var availableHeight = document.documentElement.clientHeight *0.6 ^ 0;
   if (availableHeight<200) availableHeight=200;
@@ -127,8 +143,9 @@ function fillRowsXdaysWeather(WeatherTable, list, rows){
 }
 // *************************************************************************************************
 function saveOptions(){ 
+  infoBoxWrite('Сервер сохраняет опции текущего селекта.\nПожалуйста подождите!');
 // чтобы сохранить текущий список опций из селекта делаем json
-  var obj = selectCity1.options[0];
+  var obj = selectCity1.options[0];  
   var body = '[{"value":"'+obj["value"]+'", "text":"'+obj["text"]+'"}';
   for (var i=1; i<selectCity1.options.length; i++) {
     obj = selectCity1.options[i];
@@ -151,7 +168,7 @@ function infoBoxWrite(textToShow){
 }
 // *************************************************************************************************
 function loadOptions(){ 
-// получаем с моего сервера json с опциями для селекта
+  infoBoxWrite('На сервер отправлен запрос опций для текущего селекта.\nПожалуйста подождите!');
   var myReq = '/loadOptions';
   requestToMyServer('GET', myReq, null, function(responseText){
       try {
@@ -256,10 +273,80 @@ function cancelButtonClick(){
   divCollection[0].style.display = "block"; 
   divCollection[1].style.display = "block"; 
   divCollection[2].style.display = "none"; 
-
+  citiesTable = document.getElementsByTagName('table')[0];
+  if (citiesTable) { 
+  	citiesTable.onmouseover = citiesTable.onmouseout = null; 
+  	citiesTable.onclick  = null;
+  }
+}
+// *************************************************************************************************
+function adaptableList(objCaller){ 
+// - - - - - - - - - - - - - - - -
+function onmouseoverhandler(event) {
+  var regexp = new RegExp("td", "i");
+  if (!(regexp.test(event.target.tagName))) return;
+  highlightingElem = event.target.parentElement;
+  highlightingElem = event.target.parentElement;
+  if (event.type == 'mouseover') {
+    highlightingElem.style.background = 'rgba(7, 255, 51, 0.08)';
+  }
+  if (event.type == 'mouseout') {
+    highlightingElem.style.background = ''
+  }
+} 
+// - - - - - - - - - - - - - - - -
+function oncklickhandler(event) {
+	var citiesTable = main.getElementsByTagName('table')[0];
+	var rowIndex = event.target.parentElement.sectionRowIndex;
+	var cityId = citiesTable.rows[rowIndex].cells[0].innerHTML;
+	var cityName = citiesTable.rows[rowIndex].cells[1].innerHTML;
+	var countryAb = citiesTable.rows[rowIndex].cells[2].innerHTML;
+	//console.log("CLICK on %s, %s (%s)", cityName, countryAb, cityId);
+	if (confirm("Внести город " + cityName + " в список отслеживаемой погоды?")) {
+		newSelectOption(selectCity1, cityId, cityName+', '+countryAb);
+		saveOptions();
+		cancelButtonClick(); 
+	}
+}
+// - - - - - - - - - - - - - - - -
+  var PartialName = objCaller.value;
+  if (PartialName.length<3) {
+  	infoBoxWrite('Для '+PartialName+' выборка будет слишком большой, введите больше букв из названия.');
+  	return;
+  };
+  var myReq = 'findCitiesByPartialName?'+PartialName;
+  requestToMyServer('GET', myReq, null, function(responseText){
+      //console.log(responseText);
+      try { 
+        var x = JSON.parse( responseText );  
+        infoBoxWrite(' Сформирован список из ' + x.length + ' городов начинающихся на '+objCaller.value);
+        delAllDivsInMain();
+		var fragment = document.createDocumentFragment();
+		var citiesTable = createTableHead(['ID', 'Name', 'Country']);
+		// дальше заполняем строки таблицы
+		for (var j=0; j < x.length; j++) {
+			var trElem = document.createElement('tr');
+			var tdArray = [x[j].id, x[j].name, x[j].country];  //{ id:oneCityObj._id, name: oneCityObj.name, country:oneCityObj.country });
+			for (var i=0; i<tdArray.length; i++) {
+				var tdElem = document.createElement('td');
+				tdElem.innerHTML = tdArray[i];
+				trElem.appendChild( tdElem );
+			}  
+			citiesTable.appendChild(trElem);
+		}	
+		fragment.appendChild(citiesTable);
+		createDivInMain(fragment).style.cssText ='display: flex; justify-content: center;';
+		citiesTable.onmouseover = citiesTable.onmouseout = onmouseoverhandler;
+		citiesTable.onclick  = oncklickhandler;
+      } catch (e) {
+        alert("ТРАБЛЫ " + e.message);
+      }  
+  });  
 }
 // =============================================================================
 f1FormCountriesList("UA"); // предварительная загрузка списка стран и списка городов UA
+
+
 
 
 

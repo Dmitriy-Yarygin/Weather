@@ -39,7 +39,11 @@ function giveCitiesList(objectCaller, data){
 	} catch (e) {
 		console.log("Сложности в формировании списка кодов городов " + e.message);
 	}  
-	objectCaller.makeCitiesWeatherJSON();
+	 objectCaller.makeCitiesWeatherJSON();  
+	 //////      //////      //////      //////      //////      //////      //////      //////      //////      
+	  //////      //////      //////      //////      //////      //////      //////      //////      //////      
+	   //////      //////      //////      //////      //////      //////      //////      //////      //////      
+	    //////      //////      //////      //////      //////      //////      //////      //////      //////      
 }
 // -----------------------------------------------------------------------------------------------
 WeatherInManyCities.prototype.makeCitiesWeatherJSON = function() { 		
