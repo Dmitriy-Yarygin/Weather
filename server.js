@@ -1,11 +1,3 @@
-
-//var http = require('http');
-//var url = require('url');
-//var querystring = require('querystring');
-//var static = require('node-static');
-/*var file = new static.Server('.', {
-  cache: 0
-});	*/
 var request = require('request');
 var fs = require('fs');
 var CITIESWEATHERFILENAME = 'manyCitiesWeather';

@@ -2,20 +2,18 @@ var pageHeader = document.getElementsByTagName('header')[0];
 var rangeForecast = document.getElementsByClassName('rangeForecast')[0];
 var main = document.getElementsByTagName('main')[0];
 var pageFooter = document.getElementsByTagName('footer')[0];
-//selectCity1.selectedIndex = -1;
-loadWeatherForCity( selectCity1.options[selectCity1.selectedIndex].value );
+var timerId = null;
 // =============================================================================
-
 rangeForecast.onchange = function(){  
   var ending = (rangeForecast.value!=1) ? 's' : '';
   document.getElementsByClassName('labelForRangeForecast')[0].innerHTML = 
     'Display '+rangeForecast.value+ ' row' + ending + ' forecast '; 
 }
-
+// *************************************************************************************************
 requestButton.onclick = function(){
   loadWeatherForCity( selectCity1.options[selectCity1.selectedIndex].value );
 }
-
+// *************************************************************************************************
 function loadWeatherForCity(cityCode) {
   var cityName = selectCity1.options[selectCity1.selectedIndex].innerHTML;
   infoBoxWrite('Сервер формирует ответ по '+cityName+'.\nПожалуйста подождите!');
@@ -26,13 +24,14 @@ function loadWeatherForCity(cityCode) {
       //console.log(responseText);
       try { 
         var x = JSON.parse( responseText );  
+        showWeather(x, rangeForecast.value, cityCode);
         infoBoxWrite('Получены данные погоды для '+cityName);
       } catch (e) {
         alert("ТРАБЛЫ " + e.message);
       }  
   });
 }
-
+// *************************************************************************************************
 function requestToMyServer(method, myReq, body, callbackFunction) {
   var xhr = new XMLHttpRequest();
   xhr.open(method, myReq, true);
@@ -51,6 +50,7 @@ function requestToMyServer(method, myReq, body, callbackFunction) {
   }
 }
 // *************************************************************************************************
+function showWeather(x, rows, cityCode) {
   var fragment = document.createDocumentFragment();
   var tableNameElem = document.createElement('h3');
   var WeatherTable = createTableHead(['Time', 'Temperature', 'Pressure', 'Humidity', 'Weather']);
@@ -76,7 +76,6 @@ function createDivInMain(insertedObject){
   myDiv.scrollIntoView();
   return myDiv;
 }
-
 // *************************************************************************************************  
 function delAllDivsInMain(){	
 	while (main.lastElementChild) { // удалим старые div
@@ -117,8 +116,8 @@ function FillRowCurrentWeather(WeatherTable, weatherObj){
   var date = new Date( weatherObj.dt*1000 );  
   var options = { /*era: 'long', year: "2-digit",*/ month: "2-digit", day: "2-digit", weekday: "short", /*timezone: 'UTC',*/ 
                   hour: 'numeric', minute: 'numeric', /*second: 'numeric'*/};
-//alert( date.toLocaleString("ru", options) ); // среда, 31 декабря 2014 г. н.э. 12:30:00
-//alert( date.toLocaleString("en-US", options) ); // Wednesday, December 31, 2014 Anno Domini 12
+  //alert( date.toLocaleString("ru", options) ); // среда, 31 декабря 2014 г. н.э. 12:30:00
+  //alert( date.toLocaleString("en-US", options) ); // Wednesday, December 31, 2014 Anno Domini 12
   var timeString = date.toLocaleString("en-US", options);
   var tdArray = [timeString, weatherObj.main.temp, weatherObj.main.pressure, weatherObj.main.humidity, weatherObj.weather[0].description ];
   for (var i=0; i<tdArray.length; i++) {
@@ -144,7 +143,7 @@ function fillRowsXdaysWeather(WeatherTable, list, rows){
 // *************************************************************************************************
 function saveOptions(){ 
   infoBoxWrite('Сервер сохраняет опции текущего селекта.\nПожалуйста подождите!');
-// чтобы сохранить текущий список опций из селекта делаем json
+  // чтобы сохранить текущий список опций из селекта делаем json
   var obj = selectCity1.options[0];  
   var body = '[{"value":"'+obj["value"]+'", "text":"'+obj["text"]+'"}';
   for (var i=1; i<selectCity1.options.length; i++) {
@@ -281,69 +280,76 @@ function cancelButtonClick(){
 }
 // *************************************************************************************************
 function adaptableList(objCaller){ 
-// - - - - - - - - - - - - - - - -
-function onmouseoverhandler(event) {
-  var regexp = new RegExp("td", "i");
-  if (!(regexp.test(event.target.tagName))) return;
-  highlightingElem = event.target.parentElement;
-  highlightingElem = event.target.parentElement;
-  if (event.type == 'mouseover') {
-    highlightingElem.style.background = 'rgba(7, 255, 51, 0.08)';
-  }
-  if (event.type == 'mouseout') {
-    highlightingElem.style.background = ''
-  }
-} 
-// - - - - - - - - - - - - - - - -
-function oncklickhandler(event) {
-	var citiesTable = main.getElementsByTagName('table')[0];
-	var rowIndex = event.target.parentElement.sectionRowIndex;
-	var cityId = citiesTable.rows[rowIndex].cells[0].innerHTML;
-	var cityName = citiesTable.rows[rowIndex].cells[1].innerHTML;
-	var countryAb = citiesTable.rows[rowIndex].cells[2].innerHTML;
-	//console.log("CLICK on %s, %s (%s)", cityName, countryAb, cityId);
-	if (confirm("Внести город " + cityName + " в список отслеживаемой погоды?")) {
-		newSelectOption(selectCity1, cityId, cityName+', '+countryAb);
-		saveOptions();
-		cancelButtonClick(); 
-	}
-}
-// - - - - - - - - - - - - - - - -
   var PartialName = objCaller.value;
-  if (PartialName.length<3) {
-  	infoBoxWrite('Для '+PartialName+' выборка будет слишком большой, введите больше букв из названия.');
-  	return;
-  };
-  var myReq = 'findCitiesByPartialName?'+PartialName;
-  requestToMyServer('GET', myReq, null, function(responseText){
-      //console.log(responseText);
-      try { 
-        var x = JSON.parse( responseText );  
-        infoBoxWrite(' Сформирован список из ' + x.length + ' городов начинающихся на '+objCaller.value);
+  if (!PartialName.length) return; 
+  var intervalInMilliseconds = (PartialName.length>2) ?  1000 : 
+                             ( (PartialName.length==2) ?  2000 : 3000 );
+  infoBoxWrite('Ожидание ввода следующеего символа '+intervalInMilliseconds+'милисекунд.' );
+  if (timerId) clearTimeout(timerId);
+  timerId = setTimeout( citiesSearchRequest, intervalInMilliseconds);
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    function citiesSearchRequest(){
+      var myReq = 'findCitiesByPartialName?'+PartialName;
+      requestToMyServer('GET', myReq, null, function(responseText){
+          //console.log(responseText);
+          try { 
+            var x = JSON.parse( responseText );  
+            infoBoxWrite(' Сформирован список из ' + x.length + ' городов начинающихся на '+objCaller.value);
+            delAllDivsInMain();
+            var fragment = document.createDocumentFragment();
+            var citiesTable = createTableHead(['ID', 'Name', 'Country']);
+            // дальше заполняем строки таблицы
+            for (var j=0; j < x.length; j++) {
+              var trElem = document.createElement('tr');
+              var tdArray = [x[j].id, x[j].name, x[j].country];  //{ id:oneCityObj._id, name: oneCityObj.name, country:oneCityObj.country });
+              for (var i=0; i<tdArray.length; i++) {
+                var tdElem = document.createElement('td');
+                tdElem.innerHTML = tdArray[i];
+                trElem.appendChild( tdElem );
+              }  
+              citiesTable.appendChild(trElem);
+            } 
+            fragment.appendChild(citiesTable);
+            createDivInMain(fragment).style.cssText ='display: flex; justify-content: center;';
+            citiesTable.onmouseover = citiesTable.onmouseout = onmouseoverhandler;
+            citiesTable.onclick  = oncklickhandler;
+          } catch (e) {
+            alert("ТРАБЛЫ " + e.message);
+          }  
+      });  
+    }
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    function onmouseoverhandler(event) {
+      var regexp = new RegExp("td", "i");
+      if (!(regexp.test(event.target.tagName))) return;
+      highlightingElem = event.target.parentElement;
+      highlightingElem = event.target.parentElement;
+      if (event.type == 'mouseover') {
+        highlightingElem.style.background = 'rgba(7, 255, 51, 0.08)';
+      }
+      if (event.type == 'mouseout') {
+        highlightingElem.style.background = ''
+      }
+    } 
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    function oncklickhandler(event) {
+    	var citiesTable = main.getElementsByTagName('table')[0];
+    	var rowIndex = event.target.parentElement.sectionRowIndex;
+    	var cityId = citiesTable.rows[rowIndex].cells[0].innerHTML;
+    	var cityName = citiesTable.rows[rowIndex].cells[1].innerHTML;
+    	var countryAb = citiesTable.rows[rowIndex].cells[2].innerHTML;
+    	//console.log("CLICK on %s, %s (%s)", cityName, countryAb, cityId);
+    	if (confirm("Внести город  " + cityName + ", " + countryAb + "  в список отслеживаемой погоды?")) {
+    		newSelectOption(selectCity1, cityId, cityName+', '+countryAb);
+    		saveOptions();
+    		cancelButtonClick(); 
         delAllDivsInMain();
-		var fragment = document.createDocumentFragment();
-		var citiesTable = createTableHead(['ID', 'Name', 'Country']);
-		// дальше заполняем строки таблицы
-		for (var j=0; j < x.length; j++) {
-			var trElem = document.createElement('tr');
-			var tdArray = [x[j].id, x[j].name, x[j].country];  //{ id:oneCityObj._id, name: oneCityObj.name, country:oneCityObj.country });
-			for (var i=0; i<tdArray.length; i++) {
-				var tdElem = document.createElement('td');
-				tdElem.innerHTML = tdArray[i];
-				trElem.appendChild( tdElem );
-			}  
-			citiesTable.appendChild(trElem);
-		}	
-		fragment.appendChild(citiesTable);
-		createDivInMain(fragment).style.cssText ='display: flex; justify-content: center;';
-		citiesTable.onmouseover = citiesTable.onmouseout = onmouseoverhandler;
-		citiesTable.onclick  = oncklickhandler;
-      } catch (e) {
-        alert("ТРАБЛЫ " + e.message);
-      }  
-  });  
+    	}
+    }
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 }
 // =============================================================================
+loadWeatherForCity( selectCity1.options[selectCity1.selectedIndex].value );
 f1FormCountriesList("UA"); // предварительная загрузка списка стран и списка городов UA
 
 
